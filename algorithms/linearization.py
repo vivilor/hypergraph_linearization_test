@@ -1,30 +1,32 @@
 from algorithms.EquivalentNodesSearch import EquivalentNodesClassSearch
 
 
-def try_to_find_path(pair, eq_class_node_ids: EquivalentNodesClassSearch):
-    key_a = node_keys[0]
-    key_b = node_keys[1]
+def try_to_find_path(search: EquivalentNodesClassSearch):
+    if search.protected_edges is None:
+        new_protected_edges = None
 
-    path_a_part = None
-    path_b_part = None
+        for active_node_id in search.node_ids - search.finished_node_ids:
+            active_node_paths = search.paths[active_node_id]
+            last_edge_tuples = enumerate(set([path[-1] for path in active_node_paths]))
 
-    for path_a in pair[key_a]['paths']:
-        last_edge_id = path_a[-1].id
+            for other_active_node_id in search.node_ids - search.finished_node_ids - {active_node_id}:
+                for other_active_node_path in search.paths[other_active_node_id]:
+                    for (i, last_edge) in last_edge_tuples:
+                        if last_edge in other_active_node_path:
+                            new_protected_edges = active_node_paths[i][:-1]
+                            new_protected_edges.extend(other_active_node_path)
 
-        for path_b in pair[key_b]['paths']:
-            if last_edge_id in [edge.id for edge in path_b]:
-                path_a_part = path_a
-                path_b_part = path_b
-                break
+        if new_protected_edges:
+            search.protected_edges = new_protected_edges
+        else:
+            return
 
-        if path_a_part:
-            break
 
-    if path_a_part and path_b_part:
-        pair['$path'] = path_a_part[:-1]
-        pair['$path'].extend(path_b_part)
 
-    print(pair['$path'])
+
+
+
+
 
 
 def find_max_edge_order(edges):

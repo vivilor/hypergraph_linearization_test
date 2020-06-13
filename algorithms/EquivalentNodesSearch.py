@@ -1,9 +1,9 @@
 class EquivalentNodesClassSearch:
     def __init__(self, node_ids):
         self.is_failed = False
-        self.protected_edges = []
-        self.node_ids: [str] = node_ids
-        self.finished_node_ids = []
+        self.protected_edges = None
+        self.node_ids: set = node_ids
+        self.finished_node_ids: set = set()
         self.paths = {}
 
         for node_id in node_ids:
@@ -17,3 +17,6 @@ class EquivalentNodesClassSearch:
         self.finished_node_ids.append(node_id)
 
         return self
+
+    def is_finished(self):
+        return len(self.node_ids) == len(self.finished_node_ids)

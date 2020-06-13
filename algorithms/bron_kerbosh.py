@@ -1,4 +1,7 @@
-def are_adjacent(node_id_a, node_id_b, edges):
+from algorithms import Edge, Node
+
+
+def are_adjacent(node_id_a: str, node_id_b: str, edges: [Edge]):
     for edge in edges:
         if node_id_a in edge.node_ids and node_id_b in edge.node_ids:
             return True
@@ -6,7 +9,7 @@ def are_adjacent(node_id_a, node_id_b, edges):
     return False
 
 
-def get_node_neighbours(node_id, edges):
+def get_node_neighbours(node_id, edges: [Edge]):
     neighbours = []
 
     for edge in edges:
@@ -20,7 +23,7 @@ def get_node_neighbours(node_id, edges):
     return neighbours
 
 
-def find_all_cliques(nodes, edges):
+def find_all_cliques(nodes: [Node], edges: [Edge]):
     """
     Implements Bron-Kerbosch algorithm, Version 2
     """
