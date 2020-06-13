@@ -1,11 +1,13 @@
 from __future__ import annotations
+
+from typing import List
 from uuid import uuid4
 
 
 class HyperEdge:
     def __init__(self, node_ids: [str]):
-        self.id = str(uuid4())
-        self.node_ids = node_ids
+        self.id: str = str(uuid4())
+        self.node_ids: List[str] = node_ids
 
     def __str__(self):
         result = "(%s)" % (','.join(map(str, self.node_ids)))

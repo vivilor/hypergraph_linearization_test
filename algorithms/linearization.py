@@ -1,35 +1,72 @@
+from collections import Set
+from typing import List, Tuple
+
 from algorithms.EquivalentNodesSearch import EquivalentNodesClassSearch
+from algorithms.Edge import HyperEdge
 
 
-def try_to_find_path(search: EquivalentNodesClassSearch):
+def get_next_edges(edges: [HyperEdge], end_node_ids: [str], denied_node_ids=None):
+    next_edges = []
+
+    for edge in edges:
+        has_denied = False
+        has_end_node = False
+
+        for node_id in edge.node_ids:
+            if denied_node_ids is not None and node_id in denied_node_ids:
+                has_denied = True
+                break
+            if node_id in end_node_ids:
+                has_end_node = True
+
+        if not has_denied and has_end_node:
+            next_edges.append(edge)
+
+    return next_edges
+
+
+def try_to_find_first_path(search: EquivalentNodesClassSearch):
+    active_node_ids = search.node_ids - search.finished_node_ids
+
+    for active_node_id in active_node_ids:
+        active_node_paths = search.paths[active_node_id]
+        indexed_last_edges = enumerate(set([path[-1] for path in active_node_paths]))
+        other_active_node_ids = search.node_ids - search.finished_node_ids - {active_node_id}
+
+        for other_active_node_id in other_active_node_ids:
+            other_active_node_paths = search.paths[other_active_node_id]
+
+            for other_active_node_path in other_active_node_paths:
+                for (i, last_edge) in indexed_last_edges:
+                    for other_active_node_path_edge in other_active_node_path:
+                        if last_edge == other_active_node_path_edge:
+                            search.protected_edges = active_node_paths[i][:-1]
+                            search.protected_edges.extend(other_active_node_path)
+                            search.finished_node_ids += {active_node_id, other_active_node_id}
+                            return
+
+
+def try_to_protect_edges(search: EquivalentNodesClassSearch):
     if search.protected_edges is None:
-        new_protected_edges = None
+        try_to_find_first_path(search)
 
-        for active_node_id in search.node_ids - search.finished_node_ids:
-            active_node_paths = search.paths[active_node_id]
-            last_edge_tuples = enumerate(set([path[-1] for path in active_node_paths]))
-
-            for other_active_node_id in search.node_ids - search.finished_node_ids - {active_node_id}:
-                for other_active_node_path in search.paths[other_active_node_id]:
-                    for (i, last_edge) in last_edge_tuples:
-                        if last_edge in other_active_node_path:
-                            new_protected_edges = active_node_paths[i][:-1]
-                            new_protected_edges.extend(other_active_node_path)
-
-        if new_protected_edges:
-            search.protected_edges = new_protected_edges
-        else:
+        if search.protected_edges is None:
             return
 
+    active_node_ids = search.node_ids - search.finished_node_ids
+
+    for active_node_id in active_node_ids:
+        active_node_paths = search.paths[active_node_id]
+        indexed_last_edges = enumerate(set([path[-1] for path in active_node_paths]))
+
+        for (i, last_edge) in indexed_last_edges:
+            for protected_edge in search.protected_edges:
+                if protected_edge == last_edge:
+                    search.protected_edges.extend(active_node_paths[i][:-1])
+                    search.finished_node_ids += {active_node_id}
 
 
-
-
-
-
-
-
-def find_max_edge_order(edges):
+def find_max_edge_order(edges: [HyperEdge]) -> int:
     max_order = 0
 
     for edge in edges:
@@ -40,11 +77,11 @@ def find_max_edge_order(edges):
     return max_order
 
 
-def get_edge_order(edge):
-    return len(edge.vertices)
+def get_edge_order(edge: HyperEdge) -> int:
+    return len(edge.node_ids)
 
 
-def find_edges_with_lesser_order(edges, order):
+def get_edges_with_lesser_order(edges: List[HyperEdge], order: int) -> List[Tuple[int, HyperEdge]]:
     lesser_order_edges = []
 
     for i, edge in enumerate(edges):
@@ -56,7 +93,7 @@ def find_edges_with_lesser_order(edges, order):
     return lesser_order_edges
 
 
-def find_edges_with_order(edges, order):
+def get_indexed_edges_with_order(edges: List[HyperEdge], order: int):
     edge_tuples = []
 
     for i, edge in enumerate(edges):
@@ -68,129 +105,106 @@ def find_edges_with_order(edges, order):
     return edge_tuples
 
 
-def has_all_vertices(testing_edge, target_edge):
-    for testing_vertex in testing_edge.vertices:
-        target_edge_vertices_ids = [v.id for v in target_edge.vertices]
+def has_all_vertices(testing_edge: HyperEdge, target_edge: HyperEdge):
+    for testing_edge_node in testing_edge.node_ids:
+        target_edge_node_ids = [v.id for v in target_edge.node_ids]
 
-        if testing_vertex.id not in target_edge_vertices_ids:
+        if testing_edge_node.id not in target_edge_node_ids:
             return False
 
     return True
 
 
-def find_sub_edge_indexes(edges, super_edge):
-    sub_edge_indexes = []
+def find_sub_edge_indexes_set(edges: List[HyperEdge], super_edge: HyperEdge) -> Set:
+    sub_edge_indexes = set()
 
-    sub_edges_tuples = find_edges_with_lesser_order(edges, get_edge_order(super_edge))
-    print('\t\t\tsuper edge', super_edge)
-    print('\t\t\tfound sub edges', [vertices_list_to_str(edge) for i, edge in sub_edges_tuples])
+    sub_edges_tuples = get_edges_with_lesser_order(edges, get_edge_order(super_edge))
+
+    # print('\t\t\t super edge', super_edge)
+    # print('\t\t\t found sub edges', [vertices_list_to_str(edge) for i, edge in sub_edges_tuples])
 
     for i, sub_edge in sub_edges_tuples:
         if has_all_vertices(sub_edge, super_edge):
-            sub_edge_indexes.append(i)
+            sub_edge_indexes += {i}
 
-    print('\t\t\tfound sub edge indexes', sub_edge_indexes)
+    # print('\t\t\t found sub edge indexes', sub_edge_indexes)
 
     return sub_edge_indexes
 
 
-def vertices_list_to_str(edge):
-    return ','.join([v.id for v in edge.getVertices()])
+def vertices_list_to_str(edge: HyperEdge) -> str:
+    return ','.join([node_id for node_id in edge.node_ids])
 
 
-def update_denied(denied, edge):
-    for vertex in edge.getVertices():
-        if vertex.id not in denied:
-            denied.append(vertex.id)
+def update_denied(denied_edge_ids: List[str], edge: HyperEdge):
+    for edge_node_id in edge.node_ids:
+        if edge_node_id not in denied_edge_ids:
+            denied_edge_ids.append(edge_node_id)
 
 
-def get_ends(path, key):
-    ends = []
+def get_end_node_ids(path: [HyperEdge], start_node_id):
+    end_nodes_ids = []
 
     if not len(path):
-        print('\tfound ends', [])
+        # print('\tfound ends', [])
         return []
 
-    curr_vertices = path[-1].getVertices()
-    prev_vertices = [v.id for v in path[-2].getVertices()] if len(path) > 2 else [key]
+    curr_node_ids = path[-1].node_ids
+    prev_node_ids = path[-2].node_ids if len(path) > 2 else [start_node_id]
 
-    for curr_v in curr_vertices:
-        if curr_v.id not in prev_vertices:
-            ends.append(curr_v.id)
+    for curr_node_id in curr_node_ids:
+        if curr_node_id not in prev_node_ids:
+            end_nodes_ids.append(curr_node_id)
 
-    print('\tfound ends', ends)
-    return ends
+    # print('\tfound ends', end_nodes)
+    return end_nodes_ids
 
 
-def next_hg2(self):
-    print('click next')
+def protect_edges_by_equiv_nodes_criteria_step(edges: List[HyperEdge],
+                                               searches: List[EquivalentNodesClassSearch]) -> Tuple[bool, bool]:
+    all_searches_finished = True
+    all_searches_failed = True
 
-    history = self.cv2_history
-    step = self.cv2_step
-
-    if step < len(history) - 1:
-        print('current step', step)
-        self.setScene(history[step])
-        return
-
-    if not history[step - 1]:
-        print('no step found')
-        return
-
-    hg = CanvasHyperGraph(history[step - 1])
-
-    # for edge in hg.edges:
-    #     edge.set_status()
-
-    hg_edge_ids = [edge.id for edge in hg.edges]
-
-    for pair in self.pairs:
-        print('current pair', self.pairs.index(pair))
-
-        pair_keys = [key for key in pair.keys() if key != '$path']
-
-        try_to_find_path(pair, pair_keys)
-
-        if len(pair['$path']):
-            path_edge_ids = [edge.id for edge in pair['$path']]
-            hg_path_edges = [edge for edge in hg.edges if edge.id in path_edge_ids]
-            print('\tprotected path', [vertices_list_to_str(edge) for edge in pair['$path']])
-            print('\thg has {}/{} edges'.format(len([edge.id for edge in pair['$path'] if edge.id in hg_edge_ids]),
-                                                len(pair['$path'])))
-            for edge in hg_path_edges:
-                edge.set_status('protected')
-                # edge.setPen(edge.protected_pen)
-                # edge.status = 'protected'
-                # edge.update()
+    for search in searches:
+        if search.is_failed:
+            all_searches_failed = all_searches_failed and True
             continue
 
-        for key in pair_keys:
-            for vertex in hg.vertices:
-                if vertex.id is key:
-                    vertex.set_as_pairing()
+        all_searches_failed = all_searches_failed and False
 
-            print('current key', key)
+        try_to_protect_edges(search)
 
-            denied = pair[key]['denied']
-            paths = pair[key]['paths']
+        if search.is_finished():
+            all_searches_finished = all_searches_finished and True
+            continue
 
-            print('\tprevious denied', denied)
-            print('\tprevious paths', [[vertices_list_to_str(edge) for edge in path] for path in paths])
+        all_searches_finished = all_searches_finished and False
+
+        active_node_ids = search.node_ids - search.finished_node_ids
+
+        search_failed = False
+
+        for active_node_id in active_node_ids:
+            paths = search.paths[active_node_id]
+            denied_node_ids = search.denied_node_ids[active_node_id]
 
             path_indexes_to_remove = []
             new_paths = []
 
             if not len(paths):
-                new_paths = [[next_edge] for next_edge in hg.find_next_edges([key])]
+                new_paths = [[next_edge] for next_edge in get_next_edges(edges, [active_node_id])]
             else:
-                for path in paths:
-                    print('\tcurrent path', [vertices_list_to_str(edge) for edge in path])
-                    ends = get_ends(path, key)
-                    print('\tcurrent path ends', ends)
-                    next_edges = hg.find_next_edges(ends, [vertex for vertex in denied if vertex not in ends])
+                for (path_index, path) in enumerate(paths):
+                    end_node_ids = get_end_node_ids(path, active_node_id)
+                    denied_node_ids = [
+                        denied_node_id
+                        for denied_node_id in denied_node_ids
+                        if denied_node_id not in end_node_ids
+                    ]
+                    next_edges = get_next_edges(edges, end_node_ids, denied_node_ids)
 
                     if not len(next_edges):
-                        path_indexes_to_remove.append(paths.index(path))
+                        path_indexes_to_remove.append(path_index)
                     else:
                         first_next_edge = next_edges[0]
 
@@ -201,68 +215,46 @@ def next_hg2(self):
 
                         path.append(first_next_edge)
 
-                    print('\ttemp denied', denied)
-                    print('\ttemp paths', [[vertices_list_to_str(edge) for edge in path] for path in paths])
-
             if len(path_indexes_to_remove):
                 paths = [paths[i] for i in range(len(paths)) if i not in path_indexes_to_remove]
                 path_indexes_to_remove = []
 
+            if not len(new_paths):
+                search_failed = True
+                break
+
             for new_path in new_paths:
-                update_denied(denied, new_path[-1])
+                update_denied(denied_node_ids, new_path[-1])
 
             paths.extend(new_paths)
-
-            print('\tfound denied', denied)
-            print('\tfound paths', [[vertices_list_to_str(edge) for edge in path] for path in paths])
 
             last_edges = [path[-1] for path in paths]
 
             max_edge_order = find_max_edge_order(last_edges)
 
             if max_edge_order > 2:
-                print('\tmax edge order', max_edge_order)
+                # print('\tmax edge order', max_edge_order)
 
                 for i in range(max_edge_order):
                     order = max_edge_order - i
 
-                    print('\t\tcurrent order', order)
+                    # print('\t\tcurrent order', order)
+                    # print('\t\tedges with current order', super_edges)
 
-                    super_edges = [edge for (_, edge) in find_edges_with_order(last_edges, order)]
+                    indexes_super_edges = get_indexed_edges_with_order(last_edges, order)
 
-                    print('\t\tedges with current order', super_edges)
+                    for (_, super_edge) in indexes_super_edges:
+                        sub_edge_indexes = find_sub_edge_indexes_set(last_edges, super_edge)
 
-                    for super_edge in super_edges:
-                        path_indexes_to_remove.extend(find_sub_edge_indexes(last_edges, super_edge))
+                        path_indexes_to_remove.extend(sub_edge_indexes)
                         print(path_indexes_to_remove)
                         path_indexes_to_remove = list(set(path_indexes_to_remove))
 
-                    print('\t\tsub edge indexes', path_indexes_to_remove)
+                    # print('\t\tsub edge indexes', path_indexes_to_remove)
 
-                    if len(path_indexes_to_remove):
-                        paths = [paths[j] for j in range(len(paths)) if j not in path_indexes_to_remove]
+            search.paths[active_node_id] = paths
+            search.denied_node_ids[active_node_id] = denied_node_ids
 
-            pair[key]['paths'] = paths
-            pair[key]['denied'] = denied
+        search.is_failed = search_failed
 
-            print('\tfinal denied', denied)
-            print('\tfinal paths', [[vertices_list_to_str(edge) for edge in path] for path in paths])
-
-            for path in paths:
-                path_len = len(path)
-
-                for i, edge in enumerate(path):
-                    print(edge.id, edge.id in hg_edge_ids)
-                    new_status = 'found' if i < path_len - 1 else 'current'
-
-                    for hg_edge in hg.edges:
-                        if hg_edge == edge:
-                            hg_edge.set_status(new_status)
-
-    self.cv2_history.append(hg)
-    self.cv2_step += 1
-
-    for edge in hg.edges:
-        print(edge.id, edge.status if edge.status else '__')
-
-    self.setScene(hg)
+    return all_searches_failed, all_searches_finished
